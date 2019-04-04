@@ -1,0 +1,20 @@
+[general]
+name=NYS Geocoder
+description=Geocode street addresses in New York State
+version=0.1
+about=This plugin uses a web service provided by the NYS GIS Program Office to geocode addresses within New York state.
+qgisMinimumVersion=3.0
+qgisMaximumVersion=4.0
+author=Keith Jenkins
+email=kgj2@cornell.edu
+changelog=0.1
+  - Initial version
+tags=geocoding
+category=Web
+icon=icon.png
+experimental=True
+deprecated=False
+homepage=https://github.com/kgjenkins/nys-geocoder
+tracker=https://github.com/kgjenkins/nys-geocoder/issues
+repository=https://github.com/kgjenkins/nys-geocoder
+
