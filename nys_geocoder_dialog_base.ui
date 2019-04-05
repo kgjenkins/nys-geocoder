@@ -6,25 +6,56 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>646</width>
-    <height>92</height>
+    <width>644</width>
+    <height>348</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>NYS Geocoder</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0">
-    <layout class="QVBoxLayout" name="verticalLayout">
+   <item row="1" column="0">
+    <layout class="QVBoxLayout" name="verticalLayout_2">
      <item>
-      <widget class="QLabel" name="addressLabel">
+      <widget class="QLabel" name="label">
        <property name="text">
-        <string>Geocode an address in New York state:</string>
+        <string>Input layer containing addresses</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="address">
+      <widget class="QComboBox" name="inputLayer"/>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="selectedOnly">
+       <property name="text">
+        <string>Selected features only</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>Expression of full address to geocode</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="addressExpression"/>
+     </item>
+    </layout>
+   </item>
+   <item row="3" column="0">
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QLabel" name="addressLabel">
+       <property name="text">
+        <string>Or geocode a single address in New York state:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="singleAddress">
        <property name="text">
         <string/>
        </property>

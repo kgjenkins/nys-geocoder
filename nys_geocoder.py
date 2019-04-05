@@ -23,9 +23,20 @@
 """
 from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QAction
-from qgis.core import QgsProject, QgsCoordinateReferenceSystem, QgsVectorLayer, QgsPointXY, QgsFeature, QgsGeometry, QgsMarkerSymbol
+from PyQt5.QtWidgets import QAction, QProgressDialog
+from qgis.core import (
+        QgsProject,
+        QgsCoordinateReferenceSystem,
+        QgsVectorLayer,
+        QgsPointXY,
+        QgsFeature,
+        QgsGeometry,
+        QgsMarkerSymbol,
+        QgsExpression,
+        QgsExpressionContext,
+        QgsMessageLog)
 import requests
+import time
 
 
 # Initialize Qt resources from file resources.py
@@ -195,66 +206,127 @@ class NYSGeocoder:
             self.first_start = False
             self.dlg = NYSGeocoderDialog()
 
+        # Add list of current layers to layer selector dropdown
+        layers = QgsProject.instance().layerTreeRoot().children()
+        self.dlg.inputLayer.clear()
+        # TODO limit to layers with tables
+        self.dlg.inputLayer.addItems([layer.name() for layer in layers])
+
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
         result = self.dlg.exec_()
         # See if OK was pressed
         if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            address_text = self.dlg.address.text()
-            crs_out = QgsCoordinateReferenceSystem(4326)  # Define the output CRS
 
-            # Create request
-            base_url = 'https://gisservices.its.ny.gov/arcgis/rest/services/Locators/Street_and_Address_Composite/GeocodeServer/findAddressCandidates'
-            params = {'SingleLine':address_text, 'maxLocations':1, 'outSR':'4326', 'f':'json'}
+            addresses = []
 
-            response = requests.get(url=base_url, params=params)
-            response_json = response.json()
-
-            # Handle the response. Only process if HTTP status code is 200. All other status codes imply an error.
-            if response.status_code == 200:
-                # Check for candidates in the result
-                candidates = response_json['candidates']
-                if len(candidates) == 0:
-                    self.iface.messageBar().pushMessage("Error", "No results found {}".format(response.json()), 1)
-                    return
-
-                # Get location
-                location = candidates[0]['location']
-                x = float(location['x'])
-                y = float(location['y'])
-                address = candidates[0]['address']
-                score = candidates[0]['score']
-                #self.iface.messageBar().pushMessage("{}".format(response.json()))
-
-                # Create a new memory Point layer
-                layer_out = QgsVectorLayer("Point?crs=EPSG:4326&field=address:string&field=score:integer&field=x:real&field=y:real",
-                                           "NYS Geocoder results",
-                                           "memory")
-
-                # Build the output feature
-                point_out = QgsPointXY(x, y)
-                feature = QgsFeature()
-                feature.setGeometry(QgsGeometry.fromPointXY(point_out))
-                feature.setAttributes([address, score, x, y])  # Expects an ordered list as per attribute creation of layer
-
-                # Add feature to layer
-                layer_out.dataProvider().addFeature(feature)
-
-                # Update Extents, set the style, add the layer to the canvas and zoom to layer
-                layer_out.updateExtents()
-                symbol = QgsMarkerSymbol.createSimple({'name':'circle', 'color':'yellow', 'size':'4'})
-                layer_out.renderer().setSymbol(symbol)
-                self.project.addMapLayer(layer_out)
-                self.iface.zoomToActiveLayer()
-
-
+            # check for single address
+            singleAddress = self.dlg.singleAddress.text()
+            if singleAddress:
+                # single address only
+                addresses.append(singleAddress)
             else:
-                # Notify user if smth went wrong during the request
-                self.iface.messageBar().pushMessage("NYS Geocoder error",
+                # compile list of addresses from layer/selection/expression
+                inputLayerName = self.dlg.inputLayer.currentText()
+                inputLayer = QgsProject.instance().mapLayersByName(inputLayerName)[0]
+
+                expression = self.dlg.addressExpression.text()
+                expression = '"Address1" || \', \' || "City" || \', \' || "ZipCode"'
+                e = QgsExpression(expression)
+                if e.hasParserError():
+                    self.iface.messageBar().pushMessage('Error parsing expression')
+                    return
+                context = QgsExpressionContext()
+                context.setFields(inputLayer.fields())
+                e.prepare(context)
+                for f in inputLayer.getFeatures():
+                    context.setFeature(f)
+                    address = e.evaluate(context)
+                    if e.hasEvalError():
+                        raise ValueError(e.evalErrorString())
+                    addresses.append( address )
+
+            # Create a new memory Point layer
+            layer_out = QgsVectorLayer("Point?crs=EPSG:4326&field=address:string&field=score:integer&field=x:real&field=y:real",
+                                       "NYS Geocoder results",
+                                       "memory")
+
+            # Set up the progress bar
+            count = len(addresses)
+            progress = QProgressDialog("Geocoding {} addresses...".format(count), 'Cancel', 0, count)
+            progress.setWindowModality(2) # Qt.WindowModal
+
+            for i, addr in enumerate(addresses):
+                # Show progress
+                progress.setValue(i)
+                if progress.wasCanceled():
+                    break
+
+                # Create request
+                base_url = 'https://gisservices.its.ny.gov/arcgis/rest/services/Locators/Street_and_Address_Composite/GeocodeServer/findAddressCandidates'
+                params = {'SingleLine':addr, 'maxLocations':1, 'outSR':'4326', 'f':'json'}
+
+                time.process_time()
+                response = requests.get(url=base_url, params=params)
+                QgsMessageLog.logMessage("{}ms to fetch {}".format(round(time.process_time()),response.url))
+                response_json = response.json()
+
+                # Handle the response. Only process if HTTP status code is 200. All other status codes imply an error.
+                if response.status_code == 200:
+                    # Check for candidates in the result
+                    candidates = response_json['candidates']
+                    if len(candidates) == 0:
+                        QgsMessageLog.logMessage("No results found {}".format(response.json()))
+                        # Try the fallback locator
+                        base_url = 'https://gisservices.its.ny.gov/arcgis/rest/services/Locators/Street_NoNum_and_ZipCode_Composite/GeocodeServer/findAddressCandidates'
+                        time.process_time()
+                        response = requests.get(url=base_url, params=params)
+                        QgsMessageLog.logMessage("{}ms to fetch {}".format(round(time.process_time()),response.url))
+                        response_json = response.json()
+
+                        if response.status_code == 200:
+                            candidates = response_json['candidates']
+                            if len(candidates) == 0:
+                                QgsMessageLog.logMessage("No results found {}".format(response.json()))
+                                continue
+                        else:
+                            # Notify user if smth went wrong during the request
+                            self.iface.messageBar().pushMessage("NYS Geocoder2 error",
                                      "The request was not processed succesfully!\n\n"
                                      "HTTP status code: {}\nMessage: {}".format(response.status_code, response.json()),
                                      1)
-                return
+
+                    # Get location
+                    location = candidates[0]['location']
+                    x = float(location['x'])
+                    y = float(location['y'])
+                    address = candidates[0]['address']
+                    score = candidates[0]['score']
+
+                    # Build the output feature
+                    point_out = QgsPointXY(x, y)
+                    feature = QgsFeature()
+                    feature.setGeometry(QgsGeometry.fromPointXY(point_out))
+                    feature.setAttributes([address, score, x, y])  # Expects an ordered list as per attribute creation of layer
+
+                    # Add feature to layer
+                    layer_out.dataProvider().addFeature(feature)
+
+                else:
+                    # Notify user if smth went wrong during the request
+                    self.iface.messageBar().pushMessage("NYS Geocoder error",
+                                     "The request was not processed succesfully!\n\n"
+                                     "HTTP status code: {}\nMessage: {}".format(response.status_code, response.json()),
+                                     1)
+
+
+            # Update Extents, set the style, add the layer to the canvas and zoom to layer
+            layer_out.updateExtents()
+            symbol = QgsMarkerSymbol.createSimple({'name':'circle', 'color':'purple', 'size':'3'})
+            layer_out.renderer().setSymbol(symbol)
+            self.project.addMapLayer(layer_out)
+            self.iface.zoomToActiveLayer()
+            self.iface.messageBar().clearWidgets()
+
+
