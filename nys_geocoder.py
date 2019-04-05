@@ -232,7 +232,8 @@ class NYSGeocoder:
                 inputLayer = QgsProject.instance().mapLayersByName(inputLayerName)[0]
 
                 expression = self.dlg.addressExpression.text()
-                expression = '"Address1" || \', \' || "City" || \', \' || "ZipCode"'
+                #expression = "NUMBER" || ' ' || "STREET" || ', ' || "CITY" || ', ' || "POSTCODE"
+                #expression = '"Address1" || \', \' || "City" || \', \' || "ZipCode"'
                 e = QgsExpression(expression)
                 if e.hasParserError():
                     self.iface.messageBar().pushMessage('Error parsing expression')
