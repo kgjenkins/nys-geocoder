@@ -6,59 +6,226 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>644</width>
-    <height>348</height>
+    <width>651</width>
+    <height>514</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>NYS Geocoder</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="1" column="0">
-    <layout class="QVBoxLayout" name="verticalLayout_2">
-     <item>
-      <widget class="QLabel" name="label">
-       <property name="text">
-        <string>Input layer containing addresses</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QComboBox" name="inputLayer"/>
-     </item>
-     <item>
-      <widget class="QCheckBox" name="selectedOnly">
-       <property name="text">
-        <string>Selected features only</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="label_2">
-       <property name="text">
-        <string>Expression of full address to geocode</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLineEdit" name="addressExpression"/>
-     </item>
-    </layout>
-   </item>
-   <item row="3" column="0">
+   <item row="2" column="0">
     <layout class="QVBoxLayout" name="verticalLayout">
      <item>
-      <widget class="QLabel" name="addressLabel">
-       <property name="text">
-        <string>Or geocode a single address in New York state:</string>
+      <widget class="QTabWidget" name="tabWidget">
+       <property name="currentIndex">
+        <number>0</number>
        </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLineEdit" name="singleAddress">
-       <property name="text">
-        <string/>
-       </property>
+       <widget class="QWidget" name="single">
+        <attribute name="title">
+         <string>Single Address</string>
+        </attribute>
+        <widget class="QLabel" name="addressLabel">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>20</y>
+           <width>631</width>
+           <height>13</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Geocode a single address</string>
+         </property>
+        </widget>
+        <widget class="QLineEdit" name="singleAddress">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>60</y>
+           <width>611</width>
+           <height>20</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QWidget" name="tableSingle">
+        <attribute name="title">
+         <string>Table (single field)</string>
+        </attribute>
+        <widget class="QLineEdit" name="expression">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>140</y>
+           <width>611</width>
+           <height>20</height>
+          </rect>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_3">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>20</y>
+           <width>624</width>
+           <height>13</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Geocode addresses from a table</string>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_4">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>120</y>
+           <width>624</width>
+           <height>13</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Field (or expression) containing the full address</string>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="selectedOnly">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>70</y>
+           <width>624</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Selected features only</string>
+         </property>
+        </widget>
+        <widget class="QComboBox" name="inputLayer">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>40</y>
+           <width>611</width>
+           <height>20</height>
+          </rect>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QWidget" name="tableMulti">
+        <attribute name="title">
+         <string>Table (multiple fields)</string>
+        </attribute>
+        <widget class="QLabel" name="label_5">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>20</y>
+           <width>624</width>
+           <height>13</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Geocode addresses from a table</string>
+         </property>
+        </widget>
+        <widget class="QComboBox" name="inputLayer_2">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>40</y>
+           <width>611</width>
+           <height>20</height>
+          </rect>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="selectedOnly_2">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>70</y>
+           <width>624</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Selected features only</string>
+         </property>
+        </widget>
+        <widget class="QComboBox" name="street">
+         <property name="geometry">
+          <rect>
+           <x>80</x>
+           <y>130</y>
+           <width>311</width>
+           <height>22</height>
+          </rect>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>130</y>
+           <width>81</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Street Address</string>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_2">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>170</y>
+           <width>71</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>City</string>
+         </property>
+        </widget>
+        <widget class="QComboBox" name="city">
+         <property name="geometry">
+          <rect>
+           <x>80</x>
+           <y>170</y>
+           <width>311</width>
+           <height>22</height>
+          </rect>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_6">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>210</y>
+           <width>71</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Zip Code</string>
+         </property>
+        </widget>
+        <widget class="QComboBox" name="zip">
+         <property name="geometry">
+          <rect>
+           <x>80</x>
+           <y>210</y>
+           <width>311</width>
+           <height>22</height>
+          </rect>
+         </property>
+        </widget>
+       </widget>
       </widget>
      </item>
      <item>

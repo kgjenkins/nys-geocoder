@@ -34,7 +34,11 @@ from qgis.core import (
         QgsMarkerSymbol,
         QgsExpression,
         QgsExpressionContext,
-        QgsMessageLog)
+        QgsMessageLog,
+        QgsMapLayerProxyModel,
+        QgsFieldProxyModel )
+from qgis.gui import QgsMapLayerComboBox, QgsFieldComboBox
+
 import requests
 import time
 
@@ -207,10 +211,19 @@ class NYSGeocoder:
             self.dlg = NYSGeocoderDialog()
 
         # Add list of current layers to layer selector dropdown
+
         layers = QgsProject.instance().layerTreeRoot().children()
         self.dlg.inputLayer.clear()
+        self.dlg.inputLayer_2.clear()
         # TODO limit to layers with tables
         self.dlg.inputLayer.addItems([layer.name() for layer in layers])
+        self.dlg.inputLayer_2.addItems([layer.name() for layer in layers])
+
+        self.dlg.expression.setText('"NUMBER" || \' \' || "STREET" || \', \' || "CITY" || \', \' || "POSTCODE"')
+
+        self.dlg.street = QgsFieldComboBox()
+        self.dlg.street.setFilters(QgsFieldProxyModel.String)
+
 
         # show the dialog
         self.dlg.show()
@@ -221,18 +234,26 @@ class NYSGeocoder:
 
             addresses = []
 
-            # check for single address
-            singleAddress = self.dlg.singleAddress.text()
-            if singleAddress:
-                # single address only
+            # check which tab is active
+            tab = self.dlg.tabWidget.currentIndex()
+            if tab == 0:
+                # single address
+                singleAddress = self.dlg.singleAddress.text()
                 addresses.append(singleAddress)
-            else:
-                # compile list of addresses from layer/selection/expression
+
+            elif tab == 1:
+                # addresses from single field (or expression) of layer
                 inputLayerName = self.dlg.inputLayer.currentText()
                 inputLayer = QgsProject.instance().mapLayersByName(inputLayerName)[0]
 
-                expression = self.dlg.addressExpression.text()
-                #expression = "NUMBER" || ' ' || "STREET" || ', ' || "CITY" || ', ' || "POSTCODE"
+                # get features, depending on "selected" checkbox
+                if self.dlg.selectedOnly.isChecked():
+                    features = inputLayer.getSelectedFeatures()
+                else:
+                    features = inputLayer.getFeatures()
+
+                expression = self.dlg.expression.text()
+                # Street City State ZIP
                 #expression = '"Address1" || \', \' || "City" || \', \' || "ZipCode"'
                 e = QgsExpression(expression)
                 if e.hasParserError():
@@ -241,7 +262,37 @@ class NYSGeocoder:
                 context = QgsExpressionContext()
                 context.setFields(inputLayer.fields())
                 e.prepare(context)
-                for f in inputLayer.getFeatures():
+
+                for f in features:
+                    context.setFeature(f)
+                    address = e.evaluate(context)
+                    if e.hasEvalError():
+                        raise ValueError(e.evalErrorString())
+                    addresses.append( address )
+
+            elif tab == 2:
+                # addresses from multiple fields of layer
+                inputLayerName = self.dlg.inputLayer_2.currentText()
+                inputLayer = QgsProject.instance().mapLayersByName(inputLayerName)[0]
+
+                # get features, depending on "selected" checkbox
+                if self.dlg.selectedOnly_2.isChecked():
+                    features = inputLayer.getSelectedFeatures()
+                else:
+                    features = inputLayer.getFeatures()
+
+                expression = self.dlg.expression.text()
+                # Street City State ZIP
+                #expression = '"Address1" || \', \' || "City" || \', \' || "ZipCode"'
+                e = QgsExpression(expression)
+                if e.hasParserError():
+                    self.iface.messageBar().pushMessage('Error parsing expression')
+                    return
+                context = QgsExpressionContext()
+                context.setFields(inputLayer.fields())
+                e.prepare(context)
+
+                for f in features:
                     context.setFeature(f)
                     address = e.evaluate(context)
                     if e.hasEvalError():
@@ -266,11 +317,12 @@ class NYSGeocoder:
 
                 # Create request
                 base_url = 'https://gisservices.its.ny.gov/arcgis/rest/services/Locators/Street_and_Address_Composite/GeocodeServer/findAddressCandidates'
+                #base_url = 'http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates'
                 params = {'SingleLine':addr, 'maxLocations':1, 'outSR':'4326', 'f':'json'}
 
                 time.process_time()
                 response = requests.get(url=base_url, params=params)
-                QgsMessageLog.logMessage("{}ms to fetch {}".format(round(time.process_time()),response.url))
+                #QgsMessageLog.logMessage("{}ms to fetch {}".format(round(time.process_time()),response.url))
                 response_json = response.json()
 
                 # Handle the response. Only process if HTTP status code is 200. All other status codes imply an error.
@@ -324,7 +376,7 @@ class NYSGeocoder:
 
             # Update Extents, set the style, add the layer to the canvas and zoom to layer
             layer_out.updateExtents()
-            symbol = QgsMarkerSymbol.createSimple({'name':'circle', 'color':'purple', 'size':'3'})
+            symbol = QgsMarkerSymbol.createSimple({'name':'circle', 'color':'#ffcc00', 'size':'3'})
             layer_out.renderer().setSymbol(symbol)
             self.project.addMapLayer(layer_out)
             self.iface.zoomToActiveLayer()
