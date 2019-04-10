@@ -210,19 +210,18 @@ class NYSGeocoder:
             self.first_start = False
             self.dlg = NYSGeocoderDialog()
 
-        # Add list of current layers to layer selector dropdown
+        # Set up the form for Table (single field)
+        self.dlg.inputLayer.setFilters(QgsMapLayerProxyModel.VectorLayer)
+        self.dlg.inputLayer.layerChanged.connect(self.dlg.expression.setLayer)
+        self.dlg.inputLayer.layerChanged.connect(self.dlg.idField.setLayer)
+        self.dlg.inputLayer.setCurrentIndex(-1)
 
-        layers = QgsProject.instance().layerTreeRoot().children()
-        self.dlg.inputLayer.clear()
-        self.dlg.inputLayer_2.clear()
-        # TODO limit to layers with tables
-        self.dlg.inputLayer.addItems([layer.name() for layer in layers])
-        self.dlg.inputLayer_2.addItems([layer.name() for layer in layers])
-
-        self.dlg.expression.setText('"NUMBER" || \' \' || "STREET" || \', \' || "CITY" || \', \' || "POSTCODE"')
-
-        self.dlg.street = QgsFieldComboBox()
-        self.dlg.street.setFilters(QgsFieldProxyModel.String)
+        self.dlg.inputLayer_2.setFilters(QgsMapLayerProxyModel.VectorLayer)
+        self.dlg.inputLayer_2.layerChanged.connect(self.dlg.street.setLayer)
+        self.dlg.inputLayer_2.layerChanged.connect(self.dlg.city.setLayer)
+        self.dlg.inputLayer_2.layerChanged.connect(self.dlg.zip.setLayer)
+        self.dlg.inputLayer_2.layerChanged.connect(self.dlg.idField_2.setLayer)
+        self.dlg.inputLayer_2.setCurrentIndex(-1)
 
 
         # show the dialog
@@ -239,7 +238,7 @@ class NYSGeocoder:
             if tab == 0:
                 # single address
                 singleAddress = self.dlg.singleAddress.text()
-                addresses.append(singleAddress)
+                addresses.append( (1, singleAddress) )
 
             elif tab == 1:
                 # addresses from single field (or expression) of layer
@@ -252,7 +251,7 @@ class NYSGeocoder:
                 else:
                     features = inputLayer.getFeatures()
 
-                expression = self.dlg.expression.text()
+                expression = self.dlg.expression.currentText()
                 # Street City State ZIP
                 #expression = '"Address1" || \', \' || "City" || \', \' || "ZipCode"'
                 e = QgsExpression(expression)
@@ -263,12 +262,14 @@ class NYSGeocoder:
                 context.setFields(inputLayer.fields())
                 e.prepare(context)
 
+                idField = self.dlg.idField.currentField()
+
                 for f in features:
                     context.setFeature(f)
                     address = e.evaluate(context)
                     if e.hasEvalError():
                         raise ValueError(e.evalErrorString())
-                    addresses.append( address )
+                    addresses.append( (f[idField], address) )
 
             elif tab == 2:
                 # addresses from multiple fields of layer
@@ -281,26 +282,17 @@ class NYSGeocoder:
                 else:
                     features = inputLayer.getFeatures()
 
-                expression = self.dlg.expression.text()
-                # Street City State ZIP
-                #expression = '"Address1" || \', \' || "City" || \', \' || "ZipCode"'
-                e = QgsExpression(expression)
-                if e.hasParserError():
-                    self.iface.messageBar().pushMessage('Error parsing expression')
-                    return
-                context = QgsExpressionContext()
-                context.setFields(inputLayer.fields())
-                e.prepare(context)
+                addressField = self.dlg.street.currentText()
+                cityField = self.dlg.city.currentField()
+                zipField = self.dlg.zip.currentField()
+                idField = self.dlg.idField_2.currentField()
 
                 for f in features:
-                    context.setFeature(f)
-                    address = e.evaluate(context)
-                    if e.hasEvalError():
-                        raise ValueError(e.evalErrorString())
-                    addresses.append( address )
+                    address = "{}, {}, {}".format(f[addressField], f[cityField], f[zipField])
+                    addresses.append( (f[idField], address) )
 
             # Create a new memory Point layer
-            layer_out = QgsVectorLayer("Point?crs=EPSG:4326&field=address:string&field=score:integer&field=x:real&field=y:real",
+            layer_out = QgsVectorLayer("Point?crs=EPSG:4326&field=geocode_id:integer&field=geocode_address:string&field=geocode_score:integer&field=geocode_x:real&field=geocode_y:real",
                                        "NYS Geocoder results",
                                        "memory")
 
@@ -309,11 +301,13 @@ class NYSGeocoder:
             progress = QProgressDialog("Geocoding {} addresses...".format(count), 'Cancel', 0, count)
             progress.setWindowModality(2) # Qt.WindowModal
 
-            for i, addr in enumerate(addresses):
+            for i, addrtuple in enumerate(addresses):
                 # Show progress
                 progress.setValue(i)
                 if progress.wasCanceled():
                     break
+
+                (id, addr) = addrtuple
 
                 # Create request
                 base_url = 'https://gisservices.its.ny.gov/arcgis/rest/services/Locators/Street_and_Address_Composite/GeocodeServer/findAddressCandidates'
@@ -361,7 +355,7 @@ class NYSGeocoder:
                     point_out = QgsPointXY(x, y)
                     feature = QgsFeature()
                     feature.setGeometry(QgsGeometry.fromPointXY(point_out))
-                    feature.setAttributes([address, score, x, y])  # Expects an ordered list as per attribute creation of layer
+                    feature.setAttributes([id, address, score, x, y])  # Expects an ordered list as per attribute creation of layer
 
                     # Add feature to layer
                     layer_out.dataProvider().addFeature(feature)
