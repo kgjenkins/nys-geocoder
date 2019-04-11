@@ -252,8 +252,6 @@ class NYSGeocoder:
                     features = inputLayer.getFeatures()
 
                 expression = self.dlg.expression.currentText()
-                # Street City State ZIP
-                #expression = '"Address1" || \', \' || "City" || \', \' || "ZipCode"'
                 e = QgsExpression(expression)
                 if e.hasParserError():
                     self.iface.messageBar().pushMessage('Error parsing expression')
@@ -282,13 +280,25 @@ class NYSGeocoder:
                 else:
                     features = inputLayer.getFeatures()
 
-                addressField = self.dlg.street.currentText()
+                expression = self.dlg.street.currentText()
+                e = QgsExpression(expression)
+                if e.hasParserError():
+                    self.iface.messageBar().pushMessage('Error parsing expression')
+                    return
+                context = QgsExpressionContext()
+                context.setFields(inputLayer.fields())
+                e.prepare(context)
+
                 cityField = self.dlg.city.currentField()
                 zipField = self.dlg.zip.currentField()
                 idField = self.dlg.idField_2.currentField()
 
                 for f in features:
-                    address = "{}, {}, {}".format(f[addressField], f[cityField], f[zipField])
+                    context.setFeature(f)
+                    street = e.evaluate(context)
+                    if e.hasEvalError():
+                        raise ValueError(e.evalErrorString())
+                    address = "{}, {}, {}".format(street, f[cityField], f[zipField])
                     addresses.append( (f[idField], address) )
 
             # Create a new memory Point layer
